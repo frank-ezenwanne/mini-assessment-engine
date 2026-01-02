@@ -38,7 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework.authtoken',
-    'drf_standardized_errors'
+    'drf_standardized_errors',
+    'users'
 ]
 
 REST_FRAMEWORK = {
@@ -132,7 +133,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# settings.py
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'My API',
     'VERSION': '1.0.0',
