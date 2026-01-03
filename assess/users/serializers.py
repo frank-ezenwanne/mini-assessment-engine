@@ -3,6 +3,7 @@ from rest_framework.serializers import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import authenticate
 from .models import CustomUser
+from django.core.exceptions import ObjectDoesNotExist
 
 class CustomAuthTokenSerializer(serializers.Serializer):
     email = serializers.EmailField(
