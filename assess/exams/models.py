@@ -3,6 +3,7 @@ import uuid
 from django.utils import timezone
 from users.models import CustomUser
 from rest_framework.exceptions import ValidationError
+from django.core.exceptions import ObjectDoesNotExist
 
 class Question(models.Model):
 
@@ -52,6 +53,7 @@ class Question(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
 
+
 class Exam(models.Model):
 
     EXAM_DURATION = 180 #seconds
@@ -66,11 +68,27 @@ class Exam(models.Model):
     question_map = models.JSONField(null=True,blank=True) #mapping of question num to id
     initiated_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
 
+    def clean(self):
+        question_map = self.question_map #for the JSON field
+        for key in question_map:
+            if type(key) != int or type(key) == int and not 1 <= key <= self.MAX_QUESTION_NUMBER:
+                raise ValidationError('Question map must be a mapping of question number to uuid')
+            try:
+                uuid.UUID(question_map[key])
+                Question.objects.get(id=question_map[key])
+            except ValueError:
+                raise ValidationError('The string the question number maps to must be a valid UUID')
+            except ObjectDoesNotExist:
+                raise ValidationError('The question id inserted must point to a valid question ID in the record')
+
+
     def save(self, *args, **kwargs):
         if self._state.adding == False: #if it is updated not being created
             old_instance = Exam.objects.get(pk=self.pk)
             if old_instance.ended == False and self.ended == True:
                 self.time_ended = timezone.now()
+            
+        self.full_clean()
         super().save(*args, **kwargs)
 
 class Submission(models.Model):
@@ -84,3 +102,15 @@ class Submission(models.Model):
     final_score = models.FloatField(default=0) #questions answered correctly
     selected_answers_map = models.JSONField(null=True,blank=True) #mapping of question num to answer
 
+
+    def clean(self):
+        selected_answers_map = self.selected_answers_map #for the JSON field
+        for key in selected_answers_map:
+            if type(key) != int or type(key) == int and not 1 <= key <= self.MAX_QUESTION_NUMBER:
+                raise ValidationError('answer map must be a mapping of question number to option selections')
+            elif len(selected_answers_map[key]) not in (1,4):
+                raise ValidationError('Unexpected character length for option selection')
+        
+    def save(self, *args, **kwargs):         
+        self.full_clean()
+        super().save(*args, **kwargs)

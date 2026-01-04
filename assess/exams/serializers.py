@@ -114,3 +114,11 @@ class ExamHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Exam
         fields = ('id','title','course','time_started','time_ended','ended')
+
+class CSVUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
+
+    def validate_file(self, value):
+        if not value.name.endswith('.csv'):
+            raise ValidationError('Pls Upload a CSV file !')
+        return value

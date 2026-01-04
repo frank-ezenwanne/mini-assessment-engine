@@ -1,16 +1,21 @@
 from rest_framework.generics import GenericAPIView, ListAPIView
+from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from .serializers import ExamStartSerializer,ExamResponseSerializer, AnswerQuestionSerializer, \
-    SelectQuestionSerializer, BasicExamSerializer,CourseSerializer, ExamHistorySerializer
+    SelectQuestionSerializer, BasicExamSerializer,CourseSerializer, ExamHistorySerializer,CSVUploadSerializer
 from .models import Exam, Question, Submission
 from datetime import datetime
 from utils.response_format import server_error, success_response, error_response
 from utils.result_grade import grade_exam_logic
 from utils.pagination import CustomPagination
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 import time
+import io
+import csv
+from rest_framework.parsers import FileUploadParser, MultiPartParser
 
 class StartExamView(GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -127,9 +132,8 @@ class SelectQuestionView(GenericAPIView):
             'selected_answers_map' : selected_answers_map,
             'question' : question
         })
-
     
-class FetchExamsView(ListAPIView):
+class FetchExamsHistoryView(ListAPIView):
     permission_classes = [IsAuthenticated]
     allowed_methods = ["GET"]
     serializer_class = ExamHistorySerializer
@@ -138,6 +142,36 @@ class FetchExamsView(ListAPIView):
         serializer = CourseSerializer(data={'course':self.kwargs.get('course')}).is_valid(raise_exception = True)
         course = serializer.validated_data.get('course')
         return Exam.objects.filter(course = course,submission__student=self.request.user).order_by('-time_created')
+
+
+class ExamPerformanceView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = BasicExamSerializer
+    allowed_methods = ['POST']
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception = True)
+        exam = serializer.validated_data.get('exam')
+        submission = exam.submission
+        if exam.ended == True:
+            results_map, final_score = grade_exam_logic(exam, submission.already_scored)
+        else:
+            if time.time() - exam.time_ended.timestamp() >= Exam.EXAM_DURATION:
+                exam.ended == True
+                exam.save()
+                results_map, final_score = grade_exam_logic(exam, submission.already_scored)
+            else:
+                return error_response(msg='This exam is still ongoing')
+            
+        return success_response(
+            data = {
+                'results_map':results_map,
+                'final_score':final_score
+            }
+        )
+
+
 
 class TerminateGradeExamView(GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -160,6 +194,60 @@ class TerminateGradeExamView(GenericAPIView):
         )
 
 
+
+class UploadCSVQuestions(APIView):
+    # parser_classes = [FileUploadParser]    
+    parser_classes = [MultiPartParser]    
+    permission_classes = [IsAuthenticated]
+
+    def post(self,request):
+        serializer = CSVUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        file = serializer.validated_data.get('file')
+        # csv_file = request.FILES.get('file')
+        # if not csv_file:
+        #     return error_response("No file provided")
+
+        # Validate file type
+        # if not csv_file.name.endswith('.csv'):
+        #     return errorResponse("File is not CSV type")
+
+        # df = pd.read_csv(csv_file, delimiter=',',skiprows=3,dtype=str).iloc[:-1]
+        # df = df.where(pd.notnull(df), None)
+
+        decoded_file = file.read().decode('utf-8')
+        io_string = io.StringIO(decoded_file)
+        csv_reader = csv.DictReader(io_string)
+
+        save_data=[]
+        timestamp = timezone.now()
+        # for index, row in df.iterrows():
+        index = 1
+        for row in csv_reader:
+            try:
+                q_instance=Question(
+                        question_text=row.get('question_text'),
+                        question_type=row.get('question_type'),
+                        expected_answer=row.get('expected_answer'),
+                        course=row.get('course'),
+                        option_a = row.get('option_a'),
+                        option_b = row.get('option_b'),
+                        option_c = row.get('option_c'),
+                        option_d = row.get('option_d'),
+                        timestamp = timestamp    
+                    )
+                q_instance.full_clean()
+                save_data.append(q_instance)
+            except Exception as e:
+                return error_response(f'Error at row {index+1} - {row.get("question_text")}-> {e}')
+            index += 1
+
+        try:
+            with transaction.atomic():
+                Question.objects.bulk_create(save_data)
+        except Exception as e:
+            return error_response(f'Bulk create error--{e}')
+        return success_response(msg="CSV file processed successfully", data={'date_created':timestamp})
 
 
 
