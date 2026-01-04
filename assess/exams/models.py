@@ -2,7 +2,7 @@ from django.db import models
 import uuid
 from django.utils import timezone
 from users.models import CustomUser
-from rest_framework.serializers import ValidationError 
+from rest_framework.exceptions import ValidationError
 
 class Question(models.Model):
 
@@ -39,6 +39,7 @@ class Question(models.Model):
     option_b = models.CharField(max_length=255,null=True,blank=True)
     option_c = models.CharField(max_length=255,null=True,blank=True)
     option_d = models.CharField(max_length=255,null=True,blank=True)
+    timestamp = models.DateTimeField(default = timezone.now)
 
     def clean(self):
         if self.question_type == self.PATTERN and len(self.expected_answer) != 4 or self.question_type == self.PATTERN and not all(char in (self.OPTION_A,self.OPTION_B,self.OPTION_C,self.OPTION_D) for char in self.expected_answer) :
@@ -62,7 +63,7 @@ class Exam(models.Model):
     time_started = models.DateTimeField(default=timezone.now)
     time_ended = models.DateTimeField(null=True, blank=True)
     ended = models.BooleanField(default=False)
-    question_map = models.JSONField(null=True,blank=True) #mapping of question qnum to id
+    question_map = models.JSONField(null=True,blank=True) #mapping of question num to id
     initiated_by = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
 
     def save(self, *args, **kwargs):
@@ -78,6 +79,7 @@ class Submission(models.Model):
     exam = models.OneToOneField('Exam', on_delete = models.CASCADE )
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     time_created = models.DateTimeField(default=timezone.now)
-    total_questions_answered = models.PositiveIntegerField(default=0)
-    selected_answers = models.JSONField(null=True,blank=True) #mapping of question num to answer
+    already_scored = models.BooleanField(default = False)
+    final_score = models.FloatField(default=0) #questions answered correctly
+    selected_answers_map = models.JSONField(null=True,blank=True) #mapping of question num to answer
 
