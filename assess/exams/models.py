@@ -79,6 +79,7 @@ class Submission(models.Model):
     exam = models.OneToOneField('Exam', on_delete = models.CASCADE )
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     time_created = models.DateTimeField(default=timezone.now)
+    time_scored = models.DateTimeField(null = True, blank = True)
     already_scored = models.BooleanField(default = False)
     final_score = models.FloatField(default=0) #questions answered correctly
     selected_answers_map = models.JSONField(null=True,blank=True) #mapping of question num to answer

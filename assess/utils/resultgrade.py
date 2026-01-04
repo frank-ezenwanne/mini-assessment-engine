@@ -1,5 +1,6 @@
 from exams.models import Question, Exam
 import copy
+from django.utils import timezone
 
 def grade_exam_logic(exam, already_scored):
     submission = exam.submission
@@ -20,7 +21,8 @@ def grade_exam_logic(exam, already_scored):
 
     if already_scored == False:
         submission.final_score = final_score
-        submission.graded = True
+        submission.already_scored = True
+        submission.time_scored = timezone.now()
         submission.save()
 
-    return results_map, final_score
+    return results_map, submission.final_score

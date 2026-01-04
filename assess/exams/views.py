@@ -1,11 +1,12 @@
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from .serializers import ExamStartSerializer,ExamResponseSerializer, AnswerQuestionSerializer, \
-    SelectQuestionSerializer, BasicExamSerializer,CourseSerializer
+    SelectQuestionSerializer, BasicExamSerializer,CourseSerializer, ExamHistorySerializer
 from .models import Exam, Question, Submission
 from datetime import datetime
 from utils.response_format import server_error, success_response, error_response
 from utils.result_grade import grade_exam_logic
+from utils.pagination import CustomPagination
 from django.utils.translation import gettext_lazy as _
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -127,18 +128,16 @@ class SelectQuestionView(GenericAPIView):
             'question' : question
         })
 
-
-class FetchExams(GenericAPIView):
+    
+class FetchExamsView(ListAPIView):
     permission_classes = [IsAuthenticated]
     allowed_methods = ["GET"]
-    serializer_class = CourseSerializer
-    def post(self, request, course, *args, **kwargs):
-        serializer = self.get_serializer(data={'course':course})
-        serializer.is_valid(raise_exception = True)
+    serializer_class = ExamHistorySerializer
+    pagination_class = CustomPagination
+    def get_queryset(self):
+        serializer = CourseSerializer(data={'course':self.kwargs.get('course')}).is_valid(raise_exception = True)
         course = serializer.validated_data.get('course')
-        exams = Exam.objects.filter(course = course, submission__student = request.user)
-
-
+        return Exam.objects.filter(course = course,submission__student=self.request.user).order_by('-time_created')
 
 class TerminateGradeExamView(GenericAPIView):
     permission_classes = [IsAuthenticated]
