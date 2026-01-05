@@ -11,14 +11,13 @@ import uuid
 class CustomUserManager(BaseUserManager):
 
     use_in_migrations = True
-    def create_user(self, email,first_name, last_name, password=None,  is_superuser=False,**extra_fields):
+    def create_user(self, email, password=None,**extra_fields):
         if not email:
             raise ValueError('Users must have an email address')
 
         user = self.model(
             email=self.normalize_email(email),
-            first_name = first_name, 
-            last_name = last_name
+            **extra_fields
         )
 
         user.set_password(password)
@@ -29,12 +28,16 @@ class CustomUserManager(BaseUserManager):
     def create_superuser(self, email, password=None,**extra_fields):
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_admin', True)
+        extra_fields.setdefault('email_verified', True)
  
 
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
 
         if extra_fields.get('is_admin') is not True:
+            raise ValueError('Superuser must have is_admin=True.')
+        
+        if extra_fields.get('email_verified') is not True:
             raise ValueError('Superuser must have is_admin=True.')
 
         user = self.create_user(
@@ -65,9 +68,8 @@ class CustomUser(AbstractBaseUser,PermissionsMixin):
     objects = CustomUserManager()
 
     USERNAME_FIELD = 'email' #we replacing username with email as username idea looks kinda unprofessional for students
+    REQUIRED_FIELDS = ('first_name','last_name')
 
-    def email_user(self, subject, message, from_email=None, **kwargs):
-        send_mail(subject, message, from_email, [self.email], **kwargs)
 
     def set_otp(self):
         otp = uuid.uuid4().hex[:5]

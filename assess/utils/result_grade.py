@@ -1,4 +1,4 @@
-from exams.models import Question, Exam
+from exams.models import Question
 import copy
 from django.utils import timezone
 
@@ -7,17 +7,21 @@ def grade_exam_logic(exam, already_scored):
     selected_answers_map = submission.selected_answers_map
     results_map = {}
     final_score = 0 #num of questions answered correctly
-    questions = Question.objects.filter(id__in=exam.question_map.keys()).distinct().values('question_text','question_type','course','option_a','option_b','option_c','option_d','expected_answer').first()
-    question_map = copy.deepcopy(Exam.question_map)
+    question_map = copy.deepcopy(exam.question_map)
     question_map = {v:k for k,v in question_map.items()} #now question id to question number
+    questions = Question.objects.filter(id__in=question_map.keys()).distinct().values('id','question_text','question_type','course','option_a','option_b','option_c','option_d','expected_answer')
     for question in questions:
-        qnum = question_map[question.id] #qnum is question number
-        selection_question_map = {}
-        if selected_answers_map[qnum] == question.expected_answer:
+        qnum = question_map[str(question['id'])] #qnum is question number
+        selected = selected_answers_map[qnum] 
+        if selected == question["expected_answer"]:
             final_score += 1
-        selection_question_map['question'] = question
-        selection_question_map['selected_answer'] = selected_answers_map[qnum]
-        results_map[qnum] = selection_question_map
+
+        results_map[qnum] = {
+            'question':question,
+            'selected_answer':selected_answers_map[qnum],
+            'is_correct': selected == question["expected_answer"]
+
+        }
 
     if already_scored == False:
         submission.final_score = final_score

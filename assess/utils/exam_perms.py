@@ -3,7 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from exams.models import Exam
 
 def check_exam_permission(exam, user):
-    if exam.submission.student != user:
+    if exam.initiated_by != user:
         raise PermissionDenied('User not allowed !')
     
 def get_exam_with_perm(exam, user):
