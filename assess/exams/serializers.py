@@ -4,6 +4,8 @@ from django.utils.translation import gettext_lazy as _
 from .models import Question, Exam
 from django.core.exceptions import ObjectDoesNotExist
 from utils.exam_perms import get_exam_with_perm
+from utils.cache_questions import prepare_question_cache
+from django.core.cache import cache
 
 
 #REQUEST SERIALIZERS
@@ -75,12 +77,16 @@ class SelectQuestionSerializer(serializers.Serializer):
 
         question_number = str(data.get('question_number'))
 
-        question_id = exam.question_map[question_number]
+        question_cache = cache.get_or_set(
+            f'exam_cache_{exam.id}',
+            lambda: prepare_question_cache(exam),
+            timeout = Exam.EXAM_DURATION
+        )
 
         try:
-            question = Question.objects.get(id = question_id)
-        except ObjectDoesNotExist:
-            raise ValidationError('Question not found')
+            question = question_cache[question_number]
+        except KeyError:
+            raise ValidationError('Question could not be loaded')
         
         data['question'] = DisplayExamQuestionSerializer(question).data
         data['selected_answers_map'] = exam.submission.selected_answers_map

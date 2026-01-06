@@ -12,11 +12,13 @@ from datetime import datetime
 from utils.response_format import server_error, success_response, error_response
 from utils.result_grade import grade_exam_logic
 from utils.pagination import CustomPagination
+from utils.cache_questions import prepare_question_cache
+from django.core.cache import cache
 from django.utils.translation import gettext_lazy as _
 from django.utils.functional import cached_property
 from django.utils import timezone
 from django.db import transaction
-from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.exceptions import ValidationError
 import time
 import io
 import csv
@@ -34,11 +36,18 @@ class StartExamView(GenericAPIView):
 
 
     def prepare_response(self, exam, selected_answers_map):
+
+        selected_question_number = '1'
+        question_cache = cache.get_or_set(
+            f'exam_cache_{exam.id}',
+            lambda: prepare_question_cache(exam),
+            timeout = Exam.EXAM_DURATION
+        )
+
         try:
-            selected_question_number = '1'
-            first_question = Question.objects.get(id=exam.question_map[selected_question_number])
-        except ObjectDoesNotExist:
-            raise ValidationError('Question could not be loaded !')
+            first_question = question_cache[selected_question_number]
+        except KeyError:
+            raise ValidationError('Question could not be loaded')
 
         response_data = ExamResponseSerializer({
             'exam' : exam.id,
@@ -56,7 +65,7 @@ class StartExamView(GenericAPIView):
         if time.time() - exam.time_started.timestamp() >= Exam.EXAM_DURATION:
             exam.ended = True
             exam.save()
-            return success_response(msg='Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}).data)
+            return success_response(msg='Ongoing Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}).data)
 
         selected_answers_map = exam.submission.selected_answers_map
         return self.prepare_response(exam, selected_answers_map) #if not ended..push exam to the user
@@ -127,7 +136,7 @@ class StartExamView(GenericAPIView):
                     .filter(course=course, ended=False, initiated_by=request.user)
                     .first()
                 )
-                # ongoing_exam = Exam.objects.filter(course = course, ended=False, initiated_by = request.user).first() #check if there is an ongoing exam
+        
                 if ongoing_exam:
                     return self.handle_ongoing_exam(ongoing_exam)
 
@@ -140,15 +149,19 @@ class StartExamView(GenericAPIView):
                     return server_error(msg=_(f'{course.capitalize()} exam questions not yet available.'))
                 
                 question_map = {str(serial+1) : str(question.id) for serial, question in enumerate(questions)} #note that int as keys will be conv to string in JSON in DB
+                question_map_cache = {str(serial+1) : question for serial, question in enumerate(questions)} #prepare cache
+
+            
                 empty_answers_map = {str(serial):'' for serial in range(1,max_questions + 1)}
 
                 exam = Exam.objects.create(
-                    title = f'{course.capitalize()}_Exam_{datetime.now().month} / {datetime.now().year}',
+                    title = f'{course.capitalize()}_Exam_{datetime.now().month}_/_{datetime.now().year}',
                     course = course,
                     initiated_by = request.user,
                     question_map = question_map
                 )
 
+                cache.set(f'exam_cache_{exam.id}', question_map_cache, timeout=Exam.EXAM_DURATION) #cache exam questions for exam duration
             
                 Submission.objects.create(
                     exam = exam,

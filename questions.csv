@@ -1,0 +1,31 @@
+question_text,question_type,expected_answer,course,option_a,option_b,option_c,option_d
+What is 2 + 2?,mcq,a,maths,4,3,5,6
+What is 2 + 3 ?,mcq,b,maths,6,5,4,3
+What is 10 - 7 ?,mcq,c,maths,5,4,3,2
+What is 3x3 ?,mcq,d,maths,6,7,8,9
+What is half of 8?,mcq,a,maths,4,2,6,8
+Arrange in ascending order,pattern,abcd,maths,8,10,12,14
+Arrange in descending order,pattern,abdc,maths,20,15,4,10
+Arrange in ascending order,pattern,abcd,maths,20,25,30,35
+Arrange in ascending order,pattern,dcba,maths,3,1,-1,-3
+Arrange in descending order,pattern,acbd,maths,32,16,24,12
+SI unit of force?,mcq,b,physics,Joule,Newton,Watt,Pascal
+What pulls objects to Earth?,mcq,a,physics,Gravity,Magnetism,Friction,Electricity
+Speed = distance / ?,mcq,c,physics,mass,energy,time,force
+Which is a source of light?,mcq,d,physics,Moon,Mirror,Water,Sun
+What do we use to measure temperature?,mcq,a,physics,Thermometer,Barometer,Scale,Clock
+Arrange scientists in ascending order of generation,pattern,dcba,physics,einstein,newton,galileo,archimedes
+Arrange in descending order of atomic weight,pattern,dcba,physics,hydrogen,helium,boron,lithium
+Arrange according to increasing level of entropy,pattern,adcb,physics,Solid,Plasma,Gas,liquid
+Arrange according to increasing level of energy,pattern,adcb,physics,non rechargable batteries,Nuclear,wind turbine, rechargable batteries
+Arrange in increasing order of atomic weight,pattern,abcd,physics,carbon,nitrogen,oxygen,fluorine
+Choose the noun,mcq,c,english,Run,Quick,Dog,Rapidly
+Plural of child,mcq,a,english,Children,Childs,Childes,Child
+Opposite of hot,mcq,b,english,Warm,Cold,Heat,Boil
+Choose the verb,mcq,d,english,Red,Fast,Blue,Run
+Correct article: ___ apple,mcq,a,english,An,A,The,No article
+Arrange the words in descending order of length,pattern,acbd,english,Elephant,Crow,Horse,Dog
+Arrange the words in alphabetical order,pattern,acbd,english,Apple,Cat,Ball,Dog
+Arrange the words in descending order of age,pattern,acdb,english,Adult,Neonate,Teenager,Toddler
+Arrange the words in ascending order of importance,pattern,abdc,english,Neutral,Minor,Major,Moderate
+Arrange the words in ascending order of temperature,pattern,bdca,english,Hot,Cold,Warm,Lukewarm

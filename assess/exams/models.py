@@ -94,21 +94,12 @@ class Exam(models.Model):
                 raise ValidationError('Question map must be a mapping of question number to uuid')
             try:
                 uuid.UUID(str(question_map[key]))
-                Question.objects.get(id=question_map[key])
+                Question.objects.get(id=question_map[key],course=self.course)
             except (ValueError, TypeError, AttributeError):
                 raise ValidationError('The string the question number maps to must be a valid UUID')
             except ObjectDoesNotExist:
                 raise ValidationError('The question id inserted must point to a valid question ID in the record')
 
-
-    def save(self, *args, **kwargs):
-        if self._state.adding == False: #if it is updated not being created
-            old_instance = Exam.objects.get(pk=self.pk)
-            if old_instance.ended == False and self.ended == True:
-                self.time_ended = timezone.now()
-            
-        self.full_clean()
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return f'{self.title}_with_id_{self.id}_initiated_by_{self.initiated_by.first_name}_for_{self.submission.student.first_name}---{self.time_started.year}/{self.time_started.month}/{self.time_started.day}'
