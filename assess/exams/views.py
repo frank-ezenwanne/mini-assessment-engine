@@ -36,7 +36,6 @@ class StartExamView(GenericAPIView):
     def prepare_response(self, exam, selected_answers_map):
         try:
             selected_question_number = '1'
-            print(exam.question_map,7890)
             first_question = Question.objects.get(id=exam.question_map[selected_question_number])
         except ObjectDoesNotExist:
             raise ValidationError('Question could not be loaded !')
