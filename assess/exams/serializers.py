@@ -128,19 +128,46 @@ class BaseExamSessionSerializer(serializers.Serializer):
     exam_ended = serializers.BooleanField(required = True)
 
 
-class ExamResponseSerializer(BaseExamSessionSerializer, serializers.Serializer):
+class ExamResponseSerializer(BaseExamSessionSerializer):
     exam = serializers.UUIDField()
     title = serializers.CharField()
     time_started = serializers.DateTimeField()
     question = DisplayExamQuestionSerializer()
     question_number = serializers.CharField()
-    selected_answers_map = serializers.JSONField()
+    selected_answers_map = serializers.DictField(child=serializers.CharField())
 
-class AnswerQuestionResponseSerializer(BaseExamSessionSerializer, serializers.Serializer):
-    selected_answers_map = serializers.JSONField()
+class AnswerQuestionResponseSerializer(BaseExamSessionSerializer):
+    selected_answers_map = serializers.DictField(child=serializers.CharField())
+
+class SelectQuestionResponseSerializer(BaseExamSessionSerializer):
+    question_number = serializers.CharField()  
+    selected_answers_map = serializers.DictField(child=serializers.CharField())
+    question = DisplayExamQuestionSerializer()   
 
 
-class ExamHistorySerializer(serializers.ModelSerializer):
+class ExamHistoryResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Exam
         fields = ('id','title','course','time_started','time_ended','ended')
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.submission.already_scored == True:
+            data['final_score'] = instance.final_score
+        return data
+    
+class ResultChildSerializer(serializers.Serializer):
+    question = DisplayExamQuestionSerializer()
+    selected_answer = serializers.CharField()
+    is_correct = serializers.BooleanField()
+    expected_answer = serializers.CharField()
+
+class ResultResponseSerializer(BaseExamSessionSerializer):
+    results_map = serializers.DictField(child=ResultChildSerializer(),help_text="A mapping where the key is the string rep of the Question Number.")
+    final_score = serializers.CharField()
+
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['final_score'] = f"{data['final_score']}%"
+        return data

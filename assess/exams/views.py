@@ -2,9 +2,11 @@ from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers
+from rest_framework.throttling import ScopedRateThrottle
 from .serializers import ExamStartSerializer, AnswerQuestionSerializer, SelectQuestionSerializer,\
       BasicExamSerializer,CourseSerializer, CSVUploadSerializer,BaseExamSessionSerializer,\
-        ExamResponseSerializer,ExamHistorySerializer,AnswerQuestionResponseSerializer
+        ExamResponseSerializer,ExamHistoryResponseSerializer,AnswerQuestionResponseSerializer,\
+            SelectQuestionResponseSerializer,ResultResponseSerializer
 from .models import Exam, Question, Submission
 from datetime import datetime
 from utils.response_format import server_error, success_response, error_response
@@ -24,6 +26,8 @@ class StartExamView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     allowed_methods = ["POST"]
     serializer_class = ExamStartSerializer
+    throttle_scope = 'exam_start'
+    throttle_classes = [ScopedRateThrottle]
 
 
     def prepare_response(self, exam, selected_answers_map):
@@ -49,7 +53,7 @@ class StartExamView(GenericAPIView):
         if time.time() - exam.time_started.timestamp() >= Exam.EXAM_DURATION:
             exam.ended = True
             exam.save()
-            return success_response(msg='Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}))
+            return success_response(msg='Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}).data)
 
         selected_answers_map = exam.submission.selected_answers_map
         return self.prepare_response(exam, selected_answers_map) #if not ended..push exam to the user
@@ -64,7 +68,7 @@ class StartExamView(GenericAPIView):
                         'data': ExamResponseSerializer()
                     }
                 ),
-                description='JSON response mapping question numbers to selected options.',
+                description='Exam information.',
                 examples=[
                     OpenApiExample(
                         'Ongoing exam',
@@ -102,6 +106,9 @@ class StartExamView(GenericAPIView):
 
         Always check for value of exam_ended field before proceeding. A value of false, should end the exam on the FE
         
+
+        If exam is already past timestamp or ended, it still returns a success message but with the 
+        exam_ended field as True
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception = True)
@@ -150,7 +157,7 @@ class StartExamView(GenericAPIView):
 
         else:
             if exam.time_ended or exam.ended == True:
-                return error_response(msg='This Exam is already ended..Retake')
+                return success_response(msg='Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}).data)
             return self.handle_ongoing_exam(exam) 
 
            
@@ -159,6 +166,8 @@ class AnswerQuestionView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     allowed_methods = ["POST"]
     serializer_class = AnswerQuestionSerializer
+    throttle_scope = 'exam_answer'
+    throttle_classes = [ScopedRateThrottle]
 
     @extend_schema(
         responses={
@@ -167,16 +176,7 @@ class AnswerQuestionView(GenericAPIView):
                     name='QuestionSelectedAnswerMapping',
                     fields={
                         'msg': serializers.CharField(allow_null=True),
-                        'data': inline_serializer(
-                            name='ExamStateData',
-                            fields={
-                                'selected_answers_map': serializers.DictField(
-                                    child=serializers.IntegerField(),
-                                    help_text="Mapping of question nums to selected options"
-                                ),
-                                'exam_ended': serializers.BooleanField()
-                            }
-                        )
+                        'data': AnswerQuestionResponseSerializer()
                     }
                 ),
                 description='JSON response mapping question numbers to selected options.',
@@ -186,7 +186,7 @@ class AnswerQuestionView(GenericAPIView):
                         value={
                             'msg': None, 
                             'data': {
-                                'selected_answers_map': {'1': 10, '2': 20},
+                                'selected_answers_map': {'1': 'a', '2': 'b'},
                                 'exam_ended': False
                             }
                         }
@@ -205,13 +205,22 @@ class AnswerQuestionView(GenericAPIView):
         }
     )
     def post(self, request, *args, **kwargs):
+
+        """ 
+        Allows a student to answer a question at a time in the exam.
+
+        If exam is already past timestamp or ended, it still returns a success message but with the 
+        exam_ended field as True
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception = True)
         exam = serializer.validated_data.get('exam')
+        if exam.ended or exam.time_ended:
+            return success_response(msg='Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}).data)
         if time.time() - exam.time_started.timestamp() >= Exam.EXAM_DURATION:
             exam.ended = True
             exam.save()
-            return success_response(msg='Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}))
+            return success_response(msg='Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}).data)
         question_number = serializer.validated_data.get('question_number')
         answer = serializer.validated_data.get('answer')
         submission_id = serializer.validated_data.get('submission_id')
@@ -226,48 +235,148 @@ class AnswerQuestionView(GenericAPIView):
                                 AnswerQuestionResponseSerializer(
                                     {'selected_answers_map':submission.selected_answers_map,
                                      'exam_ended':False}
-                                ))
+                                )).data
 
 
 class SelectQuestionView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     allowed_methods = ["POST"]
     serializer_class = SelectQuestionSerializer
+    throttle_scope = 'exam_select_question'
+    throttle_classes = [ScopedRateThrottle]
 
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                response=inline_serializer(
+                    name='StartExam',
+                    fields={
+                        'msg': serializers.CharField(allow_null=True),
+                        'data': SelectQuestionResponseSerializer()
+                    }
+                ),
+                description='Response to Selecting a Question.',
+                examples=[
+                    OpenApiExample(
+                        'Ongoing exam',
+                        value={
+                            'msg': None, 
+                            'data': {
+                                'question_number' : '1',
+                                'selected_answers_map': {'1': 'a', '2': 'b'},
+                                '...':'........',
+                                'exam_ended':False
+                            }
+                        }
+                    ),
+                    OpenApiExample(
+                        'Ended exam',
+                        value={
+                            'msg': 'Exam ended', 
+                            'data': {
+                                'exam_ended': True
+                            }
+                        }
+                    )
+                ]
+            )
+        }
+    )
     def post(self, request, *args, **kwargs):
+        """
+        Allows the student to select any question in the exam with a question number and exam id
+        and returns the question details
+
+        If exam is already past timestamp or ended, it still returns a success message but with the 
+        exam_ended field as True
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception = True)
         exam = serializer.validated_data.get('exam')
+        if exam.ended or exam.time_ended:
+            return success_response(msg='Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}).data)
         if time.time() - exam.time_started.timestamp() >= Exam.EXAM_DURATION:
             exam.ended = True
             exam.save()
-            return error_response(msg='Exam ended')
+            return success_response(msg='Exam ended', data = BaseExamSessionSerializer({'exam_ended':True}).data)
         question_number = serializer.validated_data.get('question_number')
         selected_answers_map = serializer.validated_data.get('selected_answers_map')
         question = serializer.validated_data.get('question')
-        return success_response(data = {
-            'question_number' : str(question_number),
-            'selected_answers_map' : selected_answers_map,
-            'question' : question,
-        })
+        return success_response(
+            data=SelectQuestionResponseSerializer({
+                'question_number' : str(question_number),
+                'selected_answers_map' : selected_answers_map,
+                'question' : question,
+                'exam_ended':False
+            }).data
+        )
+
     
 class FetchExamsHistoryView(ListAPIView):
     permission_classes = [IsAuthenticated]
     allowed_methods = ["GET"]
-    serializer_class = ExamHistorySerializer
-    pagination_class = CustomPagination
+    serializer_class = ExamHistoryResponseSerializer
+    pagination_class = CustomPagination #doc ordering specification is inside here..to override swagger's default ordering
+    throttle_scope = 'exam_general'
+    throttle_classes = [ScopedRateThrottle]
     def get_queryset(self):
         serializer = CourseSerializer(data={'course':self.kwargs.get('course')}).is_valid(raise_exception = True)
         course = serializer.validated_data.get('course')
         return Exam.objects.filter(course = course,initiated_by=self.request.user).order_by('-time_created')
+    
+    @extend_schema(
+        responses={200: ExamHistoryResponseSerializer(many=True)})
+    def get(self, request, *args, **kwargs):
+        """
+        This Fetches all exams for the current user
+        """
+        return super().get(request, *args, **kwargs)
+
 
 
 class ExamPerformanceView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = BasicExamSerializer
     allowed_methods = ['POST']
+    throttle_scope = 'exam_general'
+    throttle_classes = [ScopedRateThrottle]
 
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                response=inline_serializer(
+                    name='Exam Performance',
+                    fields={
+                        'msg': serializers.CharField(allow_null=True),
+                        'data': ResultResponseSerializer()
+                    }
+                ),
+            ),
+
+            400: OpenApiResponse(
+                response=inline_serializer(
+                    name='Exam Stll Ongoing !',
+                    fields={
+                        'error': serializers.CharField(),
+                        'data': serializers.CharField(allow_null=True)
+                    }
+                ),examples=[
+                    OpenApiExample(
+                        'Ongoing exam',
+                        value={
+                            'error': 'Exam is still Ongoing', 
+                            'data': None
+                        })]
+            )
+        }
+    )
     def post(self, request, *args, **kwargs):
+        """
+        Returns result for a particular exam if already ended else it returns an 
+        error stating the exam is still ongoing
+
+        The results_map is a mapping of question number to question, selected_answer, is_correct, expected_answer
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception = True)
         exam = serializer.validated_data.get('exam')
@@ -283,10 +392,11 @@ class ExamPerformanceView(GenericAPIView):
                 return error_response(msg='This exam is still ongoing')
             
         return success_response(
-            data = {
+            data = ResultResponseSerializer({
                 'results_map':results_map,
-                'final_score':final_score
-            }
+                'final_score':final_score,
+                'exam_ended':True
+            }).data
         )
 
 
@@ -295,8 +405,29 @@ class TerminateGradeExamView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     allowed_methods = ["POST"]
     serializer_class = BasicExamSerializer
+    throttle_scope = 'exam_start'
+    throttle_classes = [ScopedRateThrottle]
 
+
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(
+                response=inline_serializer(
+                    name='Terminate Exam',
+                    fields={
+                        'msg': serializers.CharField(allow_null=True),
+                        'data': ResultResponseSerializer()
+                    }
+                ),
+            )
+        }
+    )
     def post(self, request, *args, **kwargs):
+        """
+        Ends the exam and returns the result
+
+        The results_map is a mapping of question number to question, selected_answer, is_correct, expected_answer
+        """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception = True)
         exam = serializer.validated_data.get('exam')
@@ -305,10 +436,11 @@ class TerminateGradeExamView(GenericAPIView):
         submission = exam.submission
         results_map, final_score = grade_exam_logic(exam, submission.already_scored)
         return success_response(
-            data = {
+            data = ResultResponseSerializer({
                 'results_map':results_map,
-                'final_score':final_score
-            }
+                'final_score':final_score,
+                'exam_ended':True
+            }).data
         )
 
 
@@ -317,6 +449,8 @@ class UploadCSVQuestions(APIView):
     # parser_classes = [FileUploadParser]    
     parser_classes = [MultiPartParser]    
     permission_classes = [IsAuthenticated]
+    throttle_scope = 'uploads'
+    throttle_classes = [ScopedRateThrottle]
 
     def post(self,request):
         serializer = CSVUploadSerializer(data=request.data)

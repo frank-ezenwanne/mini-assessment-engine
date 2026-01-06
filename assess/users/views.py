@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token
 from .serializers import CustomAuthTokenSerializer, RegisterSerializer, VerifyOTPSerializer, EmailSerializer,LoginResponseSerializer
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import ScopedRateThrottle
 from utils.response_format import success_response, error_response, server_error
 from django.core.mail import EmailMessage
 from .models import CustomUser
@@ -15,6 +16,8 @@ from rest_framework import serializers
 class LoginView(APIView):
     serializer_class = CustomAuthTokenSerializer
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
+    throttle_classes = [ScopedRateThrottle]
 
     def get_serializer(self, *args, **kwargs):
         return self.serializer_class(*args, **kwargs)
@@ -49,6 +52,8 @@ class LoginView(APIView):
 
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_scope = 'auth'
+    throttle_classes = [ScopedRateThrottle]
 
     @extend_schema(
         responses={200: OpenApiResponse(
@@ -76,6 +81,9 @@ class LogoutView(APIView):
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
+    throttle_classes = [ScopedRateThrottle]
+
     @extend_schema(
         request=RegisterSerializer, 
         responses={
@@ -132,6 +140,9 @@ class RegisterView(APIView):
 
 class ResendTokenView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
+    throttle_classes = [ScopedRateThrottle]
+
     @extend_schema(
         request=EmailSerializer, 
         responses={
@@ -188,6 +199,9 @@ class ResendTokenView(APIView):
 
 class VerifyTokenView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = 'auth'
+    throttle_classes = [ScopedRateThrottle]
+    
     @extend_schema(
         request=VerifyOTPSerializer, 
         responses={

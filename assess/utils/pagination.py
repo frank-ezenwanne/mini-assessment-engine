@@ -14,6 +14,29 @@ class CustomPagination(PageNumberPagination):
                 'previous': self.get_previous_link()
             },
         })
+
+
+    def get_paginated_response_schema(self, schema):
+        """This is telling how to draw the Swagger UI for this class"""
+        return {
+            'type': 'object',
+            'properties': {
+                'data': {
+                    'type': 'object',
+                    'properties': {
+                        'response_data': schema, 
+                        'page_info': {
+                            'type': 'object',
+                            'properties': {
+                                'count': {'type': 'integer', 'example': 123},
+                                'next': {'type': 'string', 'nullable': True, 'format': 'uri'},
+                                'previous': {'type': 'string', 'nullable': True, 'format': 'uri'},
+                            }
+                        }
+                    }
+                }
+            },
+        }
     def paginate_queryset(self, queryset, request, view=None ):
         """
         Paginate a queryset if required, either returning a

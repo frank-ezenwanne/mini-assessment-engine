@@ -52,7 +52,27 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'EXCEPTION_HANDLER': 'drf_standardized_errors.handler.exception_handler'
+    'EXCEPTION_HANDLER': 'drf_standardized_errors.handler.exception_handler',
+
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+
+    'DEFAULT_THROTTLE_RATES': {
+        'auth': '8/minute',
+        'exam_start':'1/second',
+        'exam_answer':'3/second',
+        'exam_select_question':'6/second',
+        'exam_general':'20/minute',
+        'uploads':'5/minute'
+    }
+}
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'examcache',
+    }
 }
 
 DRF_STANDARDIZED_ERRORS = {"EXCEPTION_FORMATTER_CLASS":"assess.error_handler_override.CustomExceptionFormatter"}
@@ -143,20 +163,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'My API',
+    'TITLE': 'Exam Assess API',
     'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
-    'SECURITY': [{'TokenAuth': []}],
-    'COMPONENTS': {
-        'securitySchemes': {
-            'TokenAuth': {
-                'type': 'apiKey',
-                'in': 'header',
-                'name': 'Authorization',
-                'description': 'Enter: Token <your_token_key>'
-            }
-        }
-    }
     
 }
 
