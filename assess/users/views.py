@@ -26,7 +26,7 @@ class LoginView(APIView):
         request=CustomAuthTokenSerializer, 
         responses={200: OpenApiResponse(
                 inline_serializer(
-                    name='Login successful',
+                    name='LoginSuccessful',
                     fields={
                         'msg': serializers.CharField(),
                         'data': LoginResponseSerializer(),
@@ -58,7 +58,7 @@ class LogoutView(APIView):
     @extend_schema(
         responses={200: OpenApiResponse(
                 inline_serializer(
-                    name='Logout_successful',
+                    name='LogoutSuccessful',
                     fields={
                         'msg': serializers.CharField(),
                         'data': None,
@@ -66,7 +66,7 @@ class LogoutView(APIView):
                ), 
                 examples=[
                     OpenApiExample(
-                        'Example_1',
+                        'Example1',
                         value={'msg' : 'Logout successful','data':None}
                     )
                 ])}
@@ -89,7 +89,7 @@ class RegisterView(APIView):
         responses={
             200: OpenApiResponse(
                 inline_serializer(
-                    name='success_response',
+                    name='RegisterSuccessResponse',
                     fields={
                         'msg': serializers.CharField(),
                         'data': serializers.CharField(allow_null=True),
@@ -98,7 +98,7 @@ class RegisterView(APIView):
                 description='Success response with token message',
                 examples=[
                     OpenApiExample(
-                        'Example_1',
+                        'Example1',
                         value={'msg' : 'Check your email for verification OTP','data':None}
                     )
                 ]
@@ -106,7 +106,7 @@ class RegisterView(APIView):
 
             500: OpenApiResponse(
                 response=inline_serializer(
-                    name='Error_Response',
+                    name='RegisterErrorResponse',
                     many=True,
                     fields={
                         'error': serializers.CharField(),
@@ -117,7 +117,7 @@ class RegisterView(APIView):
                 description='error response with token sending',
                 examples=[
                     OpenApiExample(
-                        'Example_1',
+                        'Example1',
                         value={'error' :'Problem sending OTP mail','data':None }
                     )
                 ]
@@ -150,7 +150,7 @@ class ResendTokenView(APIView):
         responses={
             200: OpenApiResponse(
                 inline_serializer(
-                    name='success_response',
+                    name='ResendTokenSuccessResponse',
                     fields={
                         'msg': serializers.CharField(),
                         'data': None,
@@ -159,7 +159,7 @@ class ResendTokenView(APIView):
                 description='Success response with token message',
                 examples=[
                     OpenApiExample(
-                        'Example_1',
+                        'Example1',
                         value={'msg' : 'Check your email for verification OTP'}
                     )
                 ]
@@ -167,7 +167,8 @@ class ResendTokenView(APIView):
 
             500: OpenApiResponse(
                 inline_serializer(
-                    name='error_response',
+                    name='ResendTokenErrorResponse',
+                    many=True,
                     fields={
                         'error': serializers.CharField(),
                         'data': None,
@@ -176,7 +177,7 @@ class ResendTokenView(APIView):
                 description='error response with token sending',
                 examples=[
                     OpenApiExample(
-                        'Example_1',
+                        'Example1',
                         value={'error' :'Problem sending OTP mail' }
                     )
                 ]
@@ -209,7 +210,7 @@ class VerifyTokenView(APIView):
         responses={
             200: OpenApiResponse(
                 inline_serializer(
-                    name='success_response',
+                    name='VerifyTokenSuccessResponse',
                     fields={
                         'msg': serializers.CharField(),
                         'data': None,
@@ -218,7 +219,7 @@ class VerifyTokenView(APIView):
                 description='Success response with token message',
                 examples=[
                     OpenApiExample(
-                        'Example_1',
+                        'Example1',
                         value={'msg' : 'Check your email for verification OTP'}
                     )
                 ]
@@ -227,6 +228,7 @@ class VerifyTokenView(APIView):
             400: OpenApiResponse(
                 inline_serializer(
                     name='error_response',
+                    many=True,
                     fields={
                         'error': serializers.CharField(),
                         'data': None,
@@ -235,7 +237,7 @@ class VerifyTokenView(APIView):
                 description='error response with token validation',
                 examples=[
                     OpenApiExample(
-                        'Example_1',
+                        'Example1',
                         value={'error' :'Invalid OTP. Request a new one.' }
                     )
                 ]

@@ -165,7 +165,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Exam Assess API',
     'VERSION': '1.0.0',
-    'ENABLE_LIST_MECHANICS_ON_NON_2XX': True
+    'ENABLE_LIST_MECHANICS_ON_NON_2XX': True,
+     'COMPONENT_SPLIT_REQUEST': True
     
 }
 

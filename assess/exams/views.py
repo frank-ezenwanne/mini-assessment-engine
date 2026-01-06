@@ -66,7 +66,7 @@ class StartExamView(GenericAPIView):
         responses={
             200: OpenApiResponse(
                 response=inline_serializer(
-                    name='StartExam',
+                    name='StartExamSuccessResponse',
                     fields={
                         'msg': serializers.CharField(allow_null=True),
                         'data': ExamResponseSerializer()
@@ -75,7 +75,7 @@ class StartExamView(GenericAPIView):
                 description='Exam information.',
                 examples=[
                     OpenApiExample(
-                        'Ongoing exam',
+                        'OngoingExam',
                         value={
                             'msg': None, 
                             'data': {
@@ -86,7 +86,7 @@ class StartExamView(GenericAPIView):
                         }
                     ),
                     OpenApiExample(
-                        'Ended exam',
+                        'EndedExam',
                         value={
                             'msg': 'Exam ended', 
                             'data': {
@@ -177,7 +177,7 @@ class AnswerQuestionView(GenericAPIView):
         responses={
             200: OpenApiResponse(
                 response=inline_serializer(
-                    name='QuestionSelectedAnswerMapping',
+                    name='AnswerQuestionSuccessResponse',
                     fields={
                         'msg': serializers.CharField(allow_null=True),
                         'data': AnswerQuestionResponseSerializer()
@@ -186,7 +186,7 @@ class AnswerQuestionView(GenericAPIView):
                 description='JSON response mapping question numbers to selected options.',
                 examples=[
                     OpenApiExample(
-                        'Ongoing exam',
+                        'OngoingExam',
                         value={
                             'msg': None, 
                             'data': {
@@ -196,7 +196,7 @@ class AnswerQuestionView(GenericAPIView):
                         }
                     ),
                     OpenApiExample(
-                        'Ended exam',
+                        'EndedExam',
                         value={
                             'msg': 'Exam ended', 
                             'data': {
@@ -253,7 +253,7 @@ class SelectQuestionView(GenericAPIView):
         responses={
             200: OpenApiResponse(
                 response=inline_serializer(
-                    name='StartExam',
+                    name='SelectQuestionSuccessResponse',
                     fields={
                         'msg': serializers.CharField(allow_null=True),
                         'data': SelectQuestionResponseSerializer()
@@ -262,7 +262,7 @@ class SelectQuestionView(GenericAPIView):
                 description='Response to Selecting a Question.',
                 examples=[
                     OpenApiExample(
-                        'Ongoing exam',
+                        'OngoingExam',
                         value={
                             'msg': None, 
                             'data': {
@@ -274,7 +274,7 @@ class SelectQuestionView(GenericAPIView):
                         }
                     ),
                     OpenApiExample(
-                        'Ended exam',
+                        'EndedExam',
                         value={
                             'msg': 'Exam ended', 
                             'data': {
@@ -390,7 +390,7 @@ class ExamPerformanceView(GenericAPIView):
         responses={
             200: OpenApiResponse(
                 response=inline_serializer(
-                    name='Exam Performance',
+                    name='ExamPerformanceSuccessResponse',
                     fields={
                         'msg': serializers.CharField(allow_null=True),
                         'data': ResultResponseSerializer()
@@ -400,14 +400,15 @@ class ExamPerformanceView(GenericAPIView):
 
             400: OpenApiResponse(
                 response=inline_serializer(
-                    name='Exam Still Ongoing !',
+                    name='ExamStillOngoingError',
+                    many=True,
                     fields={
                         'error': serializers.CharField(),
                         'data': serializers.CharField(allow_null=True)
                     }
                 ),examples=[
                     OpenApiExample(
-                        'Ongoing exam',
+                        'OngoingExam',
                         value={
                             'error': 'Exam is still Ongoing', 
                             'data': None
@@ -415,6 +416,8 @@ class ExamPerformanceView(GenericAPIView):
             )
         }
     )
+
+    
     def post(self, request, *args, **kwargs):
         """
         Returns result for a particular exam if already ended else it returns an 
@@ -458,7 +461,7 @@ class TerminateGradeExamView(GenericAPIView):
         responses={
             200: OpenApiResponse(
                 response=inline_serializer(
-                    name='Terminate Exam',
+                    name='TerminateExamSuccessResponse',
                     fields={
                         'msg': serializers.CharField(allow_null=True),
                         'data': ResultResponseSerializer()
@@ -490,8 +493,7 @@ class TerminateGradeExamView(GenericAPIView):
 
 
 
-class UploadCSVQuestions(APIView):
-    # parser_classes = [FileUploadParser]    
+class UploadCSVQuestions(APIView): 
     parser_classes = [MultiPartParser]    
     permission_classes = [IsAuthenticated]
     throttle_scope = 'uploads'
@@ -504,23 +506,23 @@ class UploadCSVQuestions(APIView):
         responses={
                 201: OpenApiResponse(
                     response=inline_serializer(
-                        name='UploadSuccessful',
+                        name='UploadSuccessfulResponse',
                         fields={
-                            'msg': serializers.CharField(allow_null=True),
+                            'msg': serializers.CharField(help_text='Success message'),
                             'data': inline_serializer(
-                                name='UploadSuccessful',
+                                name='UploadSuccessfulDataField',
                                 fields={
-                                    'msg': serializers.CharField(allow_null=True),
-                                    'data': ResultResponseSerializer()
-                                    }
-                                ),
-                        }
-                    )
+                                        'date_created':serializers.DateTimeField()
+                                        }
+                                    )
+                                 }
+                            ),
                 ),
+                    
                 
             400: OpenApiResponse(
                 response=inline_serializer(
-                    name='ErrorResponse',
+                    name='UploadErrorResponse',
                     many=True,
                     fields={
                         'error': serializers.CharField(),
@@ -544,24 +546,12 @@ class UploadCSVQuestions(APIView):
         serializer = CSVUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         file = serializer.validated_data.get('file')
-        # csv_file = request.FILES.get('file')
-        # if not csv_file:
-        #     return error_response("No file provided")
-
-        # Validate file type
-        # if not csv_file.name.endswith('.csv'):
-        #     return errorResponse("File is not CSV type")
-
-        # df = pd.read_csv(csv_file, delimiter=',',skiprows=3,dtype=str).iloc[:-1]
-        # df = df.where(pd.notnull(df), None)
-
         decoded_file = file.read().decode('utf-8')
         io_string = io.StringIO(decoded_file)
         csv_reader = csv.DictReader(io_string)
 
         save_data=[]
         timestamp = timezone.now()
-        # for index, row in df.iterrows():
         index = 1
         for row in csv_reader:
             try:
