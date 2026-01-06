@@ -20,7 +20,7 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 import time
 import io
 import csv
-from rest_framework.parsers import FileUploadParser, MultiPartParser
+from rest_framework.parsers import MultiPartParser
 from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiResponse, OpenApiExample, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 

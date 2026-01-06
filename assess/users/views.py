@@ -5,8 +5,6 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import ScopedRateThrottle
 from utils.response_format import success_response, error_response, server_error
 from django.core.mail import EmailMessage
-from .models import CustomUser
-from django.core.exceptions import ObjectDoesNotExist
 import time
 from utils.constants import OTP_EXPIRY_MINUTES
 from django.utils.translation import gettext_lazy as _
@@ -56,12 +54,13 @@ class LogoutView(APIView):
     throttle_classes = [ScopedRateThrottle]
 
     @extend_schema(
+        request = None,
         responses={200: OpenApiResponse(
                 inline_serializer(
                     name='LogoutSuccessful',
                     fields={
                         'msg': serializers.CharField(),
-                        'data': None,
+                        'data': serializers.CharField(allow_null=True),
                     },
                ), 
                 examples=[
@@ -153,14 +152,14 @@ class ResendTokenView(APIView):
                     name='ResendTokenSuccessResponse',
                     fields={
                         'msg': serializers.CharField(),
-                        'data': None,
+                        'data': serializers.CharField(allow_null=True),
                     }
                 ),
                 description='Success response with token message',
                 examples=[
                     OpenApiExample(
                         'Example1',
-                        value={'msg' : 'Check your email for verification OTP'}
+                        value={'msg' : 'Check your email for verification OTP', 'data':None}
                     )
                 ]
             ),
@@ -171,14 +170,14 @@ class ResendTokenView(APIView):
                     many=True,
                     fields={
                         'error': serializers.CharField(),
-                        'data': None,
+                        'data': serializers.CharField(allow_null=True),
                     }
                 ),
                 description='error response with token sending',
                 examples=[
                     OpenApiExample(
                         'Example1',
-                        value={'error' :'Problem sending OTP mail' }
+                        value={'error' :'Problem sending OTP mail','data':None }
                     )
                 ]
             ),
@@ -213,14 +212,14 @@ class VerifyTokenView(APIView):
                     name='VerifyTokenSuccessResponse',
                     fields={
                         'msg': serializers.CharField(),
-                        'data': None,
+                        'data': serializers.CharField(allow_null=True)
                     }
                 ),
                 description='Success response with token message',
                 examples=[
                     OpenApiExample(
                         'Example1',
-                        value={'msg' : 'Check your email for verification OTP'}
+                        value={'msg' : 'Check your email for verification OTP','data':None}
                     )
                 ]
             ),
@@ -231,14 +230,14 @@ class VerifyTokenView(APIView):
                     many=True,
                     fields={
                         'error': serializers.CharField(),
-                        'data': None,
+                        'data': serializers.CharField(allow_null=True),
                     }
                 ),
                 description='error response with token validation',
                 examples=[
                     OpenApiExample(
                         'Example1',
-                        value={'error' :'Invalid OTP. Request a new one.' }
+                        value={'error' :'Invalid OTP. Request a new one.', 'data':None }
                     )
                 ]
             ),

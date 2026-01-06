@@ -161,14 +161,64 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+AUTH_USER_MODEL = 'users.CustomUser'
+
+
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Exam Assess API',
     'VERSION': '1.0.0',
     'ENABLE_LIST_MECHANICS_ON_NON_2XX': True,
-     'COMPONENT_SPLIT_REQUEST': True
+    'COMPONENT_SPLIT_REQUEST': True,
+    'DESCRIPTION': """ 
+
+        A NOTE ON REQUEST FORMATS
+
+        ---> SUCCESS RESPONSES
+        Every success response e.g 200, 201 is housed in an object containing 2 fields: 'msg' and 'data'. msg 
+        holds messages e.g 'login successful' while data holds the actual data e.g token. Example:
+
+         {
+         'msg':'Login successful',
+         'data':{
+             'token':'478y48uuuq8qw'
+           }
+         }
+        
+
+
+          ---> ERROR RESPONSES
+           Every error response e.g 400, 500 is housed in an array that contains at least one object having at least
+           one particular field named   ** error **
+           that holds error messages.
+
+            The error response can come from 2 possible origins. Django internal validation and dev defined.
+
+            Django defined errors example:
+
+            [
+                {
+                    "type": "validation_error",
+                    "code": "authorization",
+                    "error": "Unable to log in with provided credentials.",
+                    "field_name": "non_field_errors"
+                }
+            ]
+
+            Dev defined example:
+
+            [
+                {
+                    "error": "Exam is already ended.",
+                    "data":null 
+                }
+            ]
+
+            Therefore emphasis on the common field, 'error' that hold the message
+     
+            The error responses are always in array because of the event of multi field validation,
+            i.e each object/dict for a field
+                """
     
 }
 
-
-AUTH_USER_MODEL = 'users.CustomUser'
