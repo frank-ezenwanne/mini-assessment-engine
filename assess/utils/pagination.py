@@ -17,7 +17,7 @@ class CustomPagination(PageNumberPagination):
 
 
     def get_paginated_response_schema(self, schema):
-        """This is telling how to draw the Swagger UI for this class"""
+        """This is telling how to draw the Swagger UI for this pagination class"""
         return {
             'type': 'object',
             'properties': {

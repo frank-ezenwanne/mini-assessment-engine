@@ -105,7 +105,7 @@ class CourseSerializer(serializers.Serializer):
 
 
 class CSVUploadSerializer(serializers.Serializer):
-    file = serializers.FileField()
+    file = serializers.FileField(required=True)
 
     def validate_file(self, value):
         if not value.name.endswith('.csv'):
@@ -153,7 +153,7 @@ class ExamHistoryResponseSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         if instance.submission.already_scored == True:
-            data['final_score'] = instance.final_score
+            data['final_score'] = f'{instance.submission.final_score}%'
         return data
     
 class ResultChildSerializer(serializers.Serializer):

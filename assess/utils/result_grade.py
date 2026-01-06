@@ -27,7 +27,7 @@ def grade_exam_logic(exam, already_scored):
         }
 
     if already_scored == False:
-        submission.final_score = ( final_score / num_of_questions ) * 100
+        submission.final_score = round(( final_score / num_of_questions ) * 100, 2)
         submission.already_scored = True
         submission.time_scored = timezone.now()
         submission.save()

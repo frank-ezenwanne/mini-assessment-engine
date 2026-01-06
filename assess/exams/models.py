@@ -111,7 +111,7 @@ class Exam(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'{self.title}_with_id_{self.id}_initiated_by_{self.initiated_by.first_name}_for_{self.submission.student.first_name}'
+        return f'{self.title}_with_id_{self.id}_initiated_by_{self.initiated_by.first_name}_for_{self.submission.student.first_name}---{self.time_started.year}/{self.time_started.month}/{self.time_started.day}'
 
 
 
@@ -143,4 +143,4 @@ class Submission(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'Submission_for_Exam_for_{self.student.first_name}'
+        return f'Submission_for_Exam_with_id_{self.exam.id}_for_{self.student.first_name}---{self.time_created.year}/{self.time_created.month}/{self.time_created.day}'

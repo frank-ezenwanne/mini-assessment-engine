@@ -1,7 +1,7 @@
 from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-from rest_framework import serializers
+from rest_framework import status, serializers
 from rest_framework.throttling import ScopedRateThrottle
 from .serializers import ExamStartSerializer, AnswerQuestionSerializer, SelectQuestionSerializer,\
       BasicExamSerializer,CourseSerializer, CSVUploadSerializer,BaseExamSessionSerializer,\
@@ -13,6 +13,7 @@ from utils.response_format import server_error, success_response, error_response
 from utils.result_grade import grade_exam_logic
 from utils.pagination import CustomPagination
 from django.utils.translation import gettext_lazy as _
+from django.utils.functional import cached_property
 from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -20,7 +21,9 @@ import time
 import io
 import csv
 from rest_framework.parsers import FileUploadParser, MultiPartParser
-from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiResponse, OpenApiExample
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiResponse, OpenApiExample, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+
 
 class StartExamView(GenericAPIView):
     permission_classes = [IsAuthenticated]
@@ -33,6 +36,7 @@ class StartExamView(GenericAPIView):
     def prepare_response(self, exam, selected_answers_map):
         try:
             selected_question_number = '1'
+            print(exam.question_map,7890)
             first_question = Question.objects.get(id=exam.question_map[selected_question_number])
         except ObjectDoesNotExist:
             raise ValidationError('Question could not be loaded !')
@@ -136,11 +140,11 @@ class StartExamView(GenericAPIView):
                 if questions.count() < max_questions:
                     return server_error(msg=_(f'{course.capitalize()} exam questions not yet available.'))
                 
-                question_map = {serial+1 : str(question.id) for serial, question in enumerate(questions)} #note that int as keys will be conv to string in JSON in DB
-                empty_answers_map = {serial:'' for serial in range(1,max_questions + 1)}
+                question_map = {str(serial+1) : str(question.id) for serial, question in enumerate(questions)} #note that int as keys will be conv to string in JSON in DB
+                empty_answers_map = {str(serial):'' for serial in range(1,max_questions + 1)}
 
                 exam = Exam.objects.create(
-                    title = f'{course.capitalize()}_Exam_{datetime.now().year}',
+                    title = f'{course.capitalize()}_Exam_{datetime.now().month} / {datetime.now().year}',
                     course = course,
                     initiated_by = request.user,
                     question_map = question_map
@@ -235,7 +239,7 @@ class AnswerQuestionView(GenericAPIView):
                                 AnswerQuestionResponseSerializer(
                                     {'selected_answers_map':submission.selected_answers_map,
                                      'exam_ended':False}
-                                )).data
+                                ).data)
 
 
 class SelectQuestionView(GenericAPIView):
@@ -313,22 +317,63 @@ class SelectQuestionView(GenericAPIView):
 
     
 class FetchExamsHistoryView(ListAPIView):
+
     permission_classes = [IsAuthenticated]
     allowed_methods = ["GET"]
     serializer_class = ExamHistoryResponseSerializer
     pagination_class = CustomPagination #doc ordering specification is inside here..to override swagger's default ordering
     throttle_scope = 'exam_general'
     throttle_classes = [ScopedRateThrottle]
-    def get_queryset(self):
-        serializer = CourseSerializer(data={'course':self.kwargs.get('course')}).is_valid(raise_exception = True)
-        course = serializer.validated_data.get('course')
-        return Exam.objects.filter(course = course,initiated_by=self.request.user).order_by('-time_created')
+
+    @cached_property  #run validate stuff here to avoid making get_queryset mixed up with validate logic
+    def validated_course(self):
+        serializer = CourseSerializer(data={'course': self.kwargs.get('course')})
+        serializer.is_valid(raise_exception=True)
+        return serializer.validated_data.get('course')
+
+    def get_queryset(self): 
+        return Exam.objects.filter(course = self.validated_course,
+                        initiated_by=self.request.user).order_by('-time_started')
     
     @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='course',   
+                type=OpenApiTypes.STR, 
+                location=OpenApiParameter.PATH, 
+                description='The course subject to filter history.',
+                required=True,
+                enum=[choice[0] for choice in Question.COURSE_OPTIONS] #To Restrict the choices for frontend
+            ),
+            OpenApiParameter(
+                name='page', 
+                type=OpenApiTypes.INT, 
+                location=OpenApiParameter.QUERY, 
+                description='To specify a page number within the paginated result.',
+                required=False
+            ),
+            OpenApiParameter(
+                name='page_size', 
+                type=OpenApiTypes.INT, 
+                location=OpenApiParameter.QUERY, 
+                description='The Number of instances to return per page.',
+                required=False
+            ),
+        ],
         responses={200: ExamHistoryResponseSerializer(many=True)})
     def get(self, request, *args, **kwargs):
         """
         This Fetches all exams for the current user
+        This view is paginated, the data is returned alongside page attributes in a
+        page_info object. 
+        
+        In page_info,
+
+        count is Number of instances across all pages.
+
+        next is url to next page (nullable).
+
+        previous is url to previous page (nullable)
         """
         return super().get(request, *args, **kwargs)
 
@@ -355,7 +400,7 @@ class ExamPerformanceView(GenericAPIView):
 
             400: OpenApiResponse(
                 response=inline_serializer(
-                    name='Exam Stll Ongoing !',
+                    name='Exam Still Ongoing !',
                     fields={
                         'error': serializers.CharField(),
                         'data': serializers.CharField(allow_null=True)
@@ -452,6 +497,49 @@ class UploadCSVQuestions(APIView):
     throttle_scope = 'uploads'
     throttle_classes = [ScopedRateThrottle]
 
+    @extend_schema(
+        request={
+            'multipart/form-data': CSVUploadSerializer,
+        },
+        responses={
+                201: OpenApiResponse(
+                    response=inline_serializer(
+                        name='UploadSuccessful',
+                        fields={
+                            'msg': serializers.CharField(allow_null=True),
+                            'data': inline_serializer(
+                                name='UploadSuccessful',
+                                fields={
+                                    'msg': serializers.CharField(allow_null=True),
+                                    'data': ResultResponseSerializer()
+                                    }
+                                ),
+                        }
+                    )
+                ),
+                
+            400: OpenApiResponse(
+                response=inline_serializer(
+                    name='ErrorResponse',
+                    many=True,
+                    fields={
+                        'error': serializers.CharField(),
+                        'data': serializers.CharField(allow_null=True),
+                    }
+                ),
+                                               
+                description='Error in Processing',
+                examples=[
+                    OpenApiExample(
+                        'Example1',
+                        value={'error' :'Error at row 1 -','data':None }
+                    )
+                ]
+            )
+        },
+        summary="Upload exam questions via CSV",
+        description="Expects a multipart form-data request with a 'file' key."
+    )
     def post(self,request):
         serializer = CSVUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -491,7 +579,7 @@ class UploadCSVQuestions(APIView):
                 q_instance.full_clean()
                 save_data.append(q_instance)
             except Exception as e:
-                return error_response(f'Error at row {index+1} - {row.get("question_text")}-> {e}')
+                return error_response(f'Error at row {index+1} - having question text-{row.get("question_text")}--> {e}')
             index += 1
 
         try:
@@ -499,7 +587,7 @@ class UploadCSVQuestions(APIView):
                 Question.objects.bulk_create(save_data)
         except Exception as e:
             return error_response(f'Bulk create error--{e}')
-        return success_response(msg="CSV file processed successfully", data={'date_created':timestamp})
+        return success_response(msg="CSV file processed successfully", data={'date_created':timestamp},status=status.HTTP_201_CREATED)
 
 
 
