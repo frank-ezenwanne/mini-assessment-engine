@@ -337,7 +337,6 @@ class FetchExamsHistoryView(ListAPIView):
     throttle_scope = 'exam_general'
     throttle_classes = [ScopedRateThrottle]
 
-    @cached_property  #run validate stuff here to avoid making get_queryset mixed up with validate logic
     def validated_course(self):
         serializer = CourseSerializer(data={'course': self.kwargs.get('course')})
         serializer.is_valid(raise_exception=True)

@@ -134,6 +134,8 @@ class BaseExamSessionSerializer(serializers.Serializer):
     exam_ended = serializers.BooleanField(required = True)
 
 
+
+
 class ExamResponseSerializer(BaseExamSessionSerializer):
     exam = serializers.UUIDField()
     title = serializers.CharField()

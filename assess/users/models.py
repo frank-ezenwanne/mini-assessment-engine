@@ -52,6 +52,7 @@ class CustomUserManager(BaseUserManager):
 
 class CustomUser(AbstractBaseUser,PermissionsMixin):
 
+    id = models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True)  
     email = models.EmailField(
         verbose_name='email address',
         max_length=255,
